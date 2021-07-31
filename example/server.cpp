@@ -1,6 +1,9 @@
 #include <application.h>
 #include <boost/asio.hpp>
 
+/*
+ * Simple server example
+ */
 void service::work()
 {
 	using boost::asio::ip::tcp;
@@ -37,7 +40,7 @@ void service::work()
 
 int main(int argc, char* argv[])
 {
-	application app;
-	app.start(argc, argv);
+	application app;		// create object of application
+	app.start(argc, argv);	// call start functaion from application.h
 	return 0;
 }

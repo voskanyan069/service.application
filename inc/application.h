@@ -15,6 +15,9 @@
 
 namespace po = boost::program_options;
 
+/*
+ * This class was for creating, installing and uninstalling service
+ */
 class service
 {
 public:
@@ -23,8 +26,14 @@ public:
 	{
 	}
 
+	/*
+	 * Overriding when include
+	 */
 	void work();
 
+	/*
+	 * Install the service
+	 */
 	void install(std::string name)
 	{
 #if OS == LINUX
@@ -34,7 +43,7 @@ public:
 		command.append(path_str);
 		command.append(" /etc/init.d/");
 		command.append(name.c_str());
-		resid = std::system(command.c_str());
+		resid = std::system(command.c_str()); // copy bin file to /etc/init.d/
 		if (resid != 0)
 		{
 			std::cout << " [error] " << resid << std::endl;
@@ -42,12 +51,12 @@ public:
 		command = "update-rc.d ";
 		command.append(name.c_str());
 		command.append(" defaults");
-		resid = std::system(command.c_str());
-		if (resid == 0)
+		resid = std::system(command.c_str()); // update-rc.d <NAME> defaults
+		if (resid == 0) // command returned successfully
 		{
 			std::cout << "Daemon successfully installed" << std::endl;
 		}
-		else
+		else // command reteurned some error
 		{
 			std::cout << " [error] " << resid << std::endl;
 		}
@@ -61,18 +70,21 @@ public:
 #endif
 	}
 
+	/*
+	 * Uninstall the service
+	 */
 	void uninstall(std::string name)
 	{
 #if OS == LINUX
 		int resid;
 		std::string command("sudo rm -f /etc/init.d/");
 		command.append(name.c_str());
-		resid = std::system(command.c_str());
-		if (resid == 0)
+		resid = std::system(command.c_str()); // remove /etc/init.d/<NAME>
+		if (resid == 0) // command returned successfully
 		{
 			std::cout << "Daemon successfully deleted" << std::endl;
 		}
-		else
+		else // command returned some error
 		{
 			std::cout << " [error] " << resid << std::endl;
 		}
@@ -83,6 +95,9 @@ public:
 #endif
 	}
 
+	/*
+	 * Calling other methods from command-line arguments
+	 */
 	bool setup()
 	{
 		po::options_description desc("Allowed options");
@@ -96,15 +111,15 @@ public:
 		po::store(po::parse_command_line(args->argc(), args->argv(), desc), vm);
 		po::notify(vm);
 
-		std::string name = vm["name"].as<std::string>();
+		std::string name = vm["name"].as<std::string>(); // -n, --name
 
-		if (vm.count("install"))
+		if (vm.count("install")) // -i, --install
 		{
 			install(name);
 			return 1;
 		}
 
-		if (vm.count("uninstall"))
+		if (vm.count("uninstall")) // -u, --uninstall
 		{
 			uninstall(name);
 			return 1;
@@ -114,14 +129,15 @@ public:
 
 	int operator()()
 	{
-		args = context_.find<boost::application::args>();
-		path = boost::filesystem::system_complete(args->argv()[0]);
+		args = context_.find<boost::application::args>(); // command-line args
+		path = boost::filesystem::system_complete(args->argv()[0]); // exe path
 
-		if (setup())
+		if (setup()) // called install or uninstall
 		{
 			return 1;
 		}
 
+		// Launch new background thread and call service::work method
 		boost::thread thread(&service::work, this);
 		context_.find<boost::application
 			::wait_for_termination_request>()->wait();
@@ -129,16 +145,25 @@ public:
 		return 0;
 	}
 
+	/*
+	 * On service stop [Linux/Windows]
+	 */
 	bool stop()
 	{
 		return true;
 	}
 
+	/*
+	 * On service pause [Windows]
+	 */
 	bool pause()
 	{
 		return true;
 	}
 
+	/*
+	 * On service resume [Windows]
+	 */
 	bool resume()
 	{
 		return true;
@@ -150,6 +175,9 @@ private:
 	boost::filesystem::path path;
 };
 
+/*
+ * Application class for creating service apps
+ */
 class application
 {
 public:
@@ -157,6 +185,9 @@ public:
 	{
 	}
 
+	/*
+	 * Create service
+	 */
 #if OS == WIN32 || OS == WIN64
 	int start(int argc, _TCHAR* argv[])
 #elif OS == LINUX
@@ -170,19 +201,20 @@ public:
 		boost::system::error_code ec;
 		int res;
 
-		if (argc == 1) {
+		if (argc == 1) // runned without arguments
+		{
 			res = boost::application::launch<
 #if OS == LINUX
-				boost::application::server
+				boost::application::server // launch app in background
 #elif OS == WIN32 || OS == WIN64
-				boost::application::common
+				boost::application::common // launch app in foreground
 #endif
 				>(app, app_context, ec);
 		}
 		else
 		{
 #if OS == LINUX
-			if (getuid())
+			if (getuid()) // runned as sudo
 			{
 				std::cout << "Please run as root" << std::endl;
 				return 1;
