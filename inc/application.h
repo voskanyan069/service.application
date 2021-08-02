@@ -34,7 +34,7 @@ public:
 	/*
 	 * Install the service
 	 */
-	void install(std::string name)
+	void install(std::string name, std::string display, std::string mode)
 	{
 #if OS == LINUX
 		int resid;
@@ -62,11 +62,7 @@ public:
 		}
 #elif OS == WIN32 || OS == WIN64
 		std::string path_str = path.string();
-		std::wstring wide_name= std::wstring(name.begin(), name.end());
-		std::wstring wide_path = std::wstring(path_str.begin(), path_str.end());
-		const wchar_t* svname = wide_name.c_str();
-		const wchar_t* svpath = wide_path.c_str();
-		install_windows_service(svname, svpath);
+		install_windows_service(name, display, mode, path_str);
 #endif
 	}
 
@@ -102,20 +98,34 @@ public:
 	{
 		po::options_description desc("Allowed options");
 		desc.add_options()
+			("help,h", "display this help message")
 			("install,i", "install service")
 			("uninstall,u", "uninstall service")
-			("name,n", po::value<std::string>()->default_value("server"),
-			 "name of the service");
+			("name,n", po::value<std::string>()->default_value("my_service"),
+			 "name of the service")
+			("display,d", po::value<std::string>()->default_value("MyService"),
+			 "display name of the service")
+			("mode,m", po::value<std::string>()->default_value("auto"),
+			 "service mode [auto*, manual]")
+			;
 
 		po::variables_map vm;
 		po::store(po::parse_command_line(args->argc(), args->argv(), desc), vm);
 		po::notify(vm);
 
 		std::string name = vm["name"].as<std::string>(); // -n, --name
+		std::string display = vm["display"].as<std::string>(); // -d, --display
+		std::string mode = vm["mode"].as<std::string>(); // -m, --mode
+
+		if (vm.count("help")) // -h, --help
+		{
+			std::cout << desc << std::endl;
+			return 1;
+		}
 
 		if (vm.count("install")) // -i, --install
 		{
-			install(name);
+			install(name, display, mode);
 			return 1;
 		}
 

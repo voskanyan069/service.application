@@ -1,7 +1,37 @@
 #ifndef SETUP_H
 #define SETUP_H
 
-void install_windows_service(const wchar_t* SVCNAME, const wchar_t* SVCPATH)
+#include <string>
+
+const wchar_t* to_wchart(std::string str)
+{
+	std::wstring wide_str = std::wstring(str.begin(), str.end());
+	return wide_str.c_str();
+}
+
+void install_windows_service(std::string name, std::string display,
+		std::string mode, std::string path)
+{
+	DWORD mode = SERVICE_AUTO_START;
+	if (mode == "manual")
+	{
+		mode = SERVICE_DEMAND_START;
+	}
+	install_windows_service_(
+			to_wchart(name),
+			to_wchart(display),
+			mode,
+			to_wchart(path)
+			);
+}
+
+void uninstall_windows_service(std::string name)
+{
+	uninstall_windows_service_(to_wchart(name));
+}
+
+void install_windows_service_(const wchar_t* SVCNAME, const wchar_t* SVCDISPLAY,
+		DWORD SVCMODE, const wchar_t* SVCPATH)
 {
 	SC_HANDLE schSCManager;
 	SC_HANDLE schService;
@@ -27,10 +57,10 @@ void install_windows_service(const wchar_t* SVCNAME, const wchar_t* SVCPATH)
 	schService = CreateService(
 		schSCManager,              // SCM database 
 		SVCNAME,                   // name of service 
-		SVCNAME,                   // service name to display 
+		SVCDISPLAY,                // service name to display 
 		SERVICE_ALL_ACCESS,        // desired access 
 		SERVICE_WIN32_OWN_PROCESS, // service type 
-		SERVICE_DEMAND_START,      // start type 
+		SVCMODE,                   // start type 
 		SERVICE_ERROR_NORMAL,      // error control type 
 		SVCPATH,                   // path to service's binary 
 		NULL,                      // no load ordering group 
@@ -54,7 +84,7 @@ void install_windows_service(const wchar_t* SVCNAME, const wchar_t* SVCPATH)
 	CloseServiceHandle(schSCManager);
 }
 
-void uninstall_windows_service(const wchar_t* szSvcName)
+void uninstall_windows_service_(const wchar_t* szSvcName)
 {
 	SC_HANDLE schSCManager;
 	SC_HANDLE schService;
