@@ -1,5 +1,5 @@
-#ifndef APPLICATION_H
-#define APPLICATION_H
+#ifndef APPLICATION_HPP
+#define APPLICATION_HPP
 
 #define BOOST_LIB_DIAGNOSTIC
 
@@ -243,4 +243,4 @@ public:
 	}
 };
 
-#endif // APPLICATION_H
+#endif // APPLICATION_HPP
