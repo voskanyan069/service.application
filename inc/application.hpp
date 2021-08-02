@@ -37,19 +37,19 @@ public:
 	void install(std::string name, std::string mode)
 	{
 #if OS == LINUX
-		int resid;
-		const char* path_str = path.c_str();
-		std::string command("sudo cp ");
-		command.append(path_str);
-		command.append(" /etc/init.d/");
-		command.append(name.c_str());
-		resid = std::system(command.c_str()); // copy bin file to /etc/init.d/
-		if (resid != 0)
-		{
-			std::cout << " [error] " << resid << std::endl;
-		}
 		if (mode == "auto")
 		{
+			int resid;
+			const char* path_str = path.c_str();
+			std::string command("sudo cp ");
+			command.append(path_str);
+			command.append(" /etc/init.d/");
+			command.append(name.c_str());
+			resid = std::system(command.c_str()); // copy bin file /etc/init.d
+			if (resid != 0)
+			{
+				std::cout << " [error] " << resid << std::endl;
+			}
 			command = "update-rc.d ";
 			command.append(name.c_str());
 			command.append(" defaults");
