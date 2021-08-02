@@ -34,7 +34,7 @@ public:
 	/*
 	 * Install the service
 	 */
-	void install(std::string name, std::string display, std::string mode)
+	void install(std::string name, std::string mode)
 	{
 #if OS == LINUX
 		int resid;
@@ -48,21 +48,29 @@ public:
 		{
 			std::cout << " [error] " << resid << std::endl;
 		}
-		command = "update-rc.d ";
-		command.append(name.c_str());
-		command.append(" defaults");
-		resid = std::system(command.c_str()); // update-rc.d <NAME> defaults
-		if (resid == 0) // command returned successfully
+		if (mode == "auto")
 		{
-			std::cout << "Daemon successfully installed" << std::endl;
-		}
-		else // command reteurned some error
-		{
-			std::cout << " [error] " << resid << std::endl;
+			command = "update-rc.d ";
+			command.append(name.c_str());
+			command.append(" defaults");
+			resid = std::system(command.c_str()); // update-rc.d <NAME> defaults
+			if (resid == 0) // command returned successfully
+			{
+				std::cout << "Daemon successfully installed" << std::endl;
+			}
+			else // command reteurned some error
+			{
+				std::cout << " [error] " << resid << std::endl;
+			}
 		}
 #elif OS == WIN32 || OS == WIN64
 		std::string path_str = path.string();
-		install_windows_service(name, display, mode, path_str);
+		std::wstring wide_name = std::wstring(name.begin(), name.end());
+		std::wstring wide_path = std::wstring(path_str.begin(), path_str.end());
+		const wchar_t* svcname = wide_name.c_str();
+		const wchar_t* svcpath = wide_path.c_str();
+		
+		install_windows_service(svcname, mode, svcpath);
 #endif
 	}
 
@@ -85,9 +93,9 @@ public:
 			std::cout << " [error] " << resid << std::endl;
 		}
 #elif OS == WIN32 || OS == WIN64
-		std::wstring wide_string = std::wstring(name.begin(), name.end());
-		const wchar_t* svname = wide_string.c_str();
-		uninstall_windows_service(svname);
+		std::wstring wide_name = std::wstring(name.begin(), name.end());
+		const wchar_t* svcname = wide_name.c_str();
+		uninstall_windows_service(svcname);
 #endif
 	}
 
@@ -103,10 +111,8 @@ public:
 			("uninstall,u", "uninstall service")
 			("name,n", po::value<std::string>()->default_value("my_service"),
 			 "name of the service")
-			("display,d", po::value<std::string>()->default_value("MyService"),
-			 "display name of the service")
-			("mode,m", po::value<std::string>()->default_value("auto"),
-			 "service mode [auto*, manual]")
+			("mode,m", po::value<std::string>()->default_value("manual"),
+			 "service mode [auto, manual*]")
 			;
 
 		po::variables_map vm;
@@ -114,7 +120,6 @@ public:
 		po::notify(vm);
 
 		std::string name = vm["name"].as<std::string>(); // -n, --name
-		std::string display = vm["display"].as<std::string>(); // -d, --display
 		std::string mode = vm["mode"].as<std::string>(); // -m, --mode
 
 		if (vm.count("help")) // -h, --help
@@ -125,7 +130,7 @@ public:
 
 		if (vm.count("install")) // -i, --install
 		{
-			install(name, display, mode);
+			install(name, mode);
 			return 1;
 		}
 
