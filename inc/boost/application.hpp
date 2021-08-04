@@ -1,34 +1,258 @@
-// Copyright 2014 Renato Tegon Forti
-//
-// Distributed under the Boost Software License, Version 1.0.
-// (See accompanying file LICENSE_1_0.txt
-// or copy at http://www.boost.org/LICENSE_1_0.txt)
+#ifndef APPLICATION_HPP
+#define APPLICATION_HPP
 
-#ifndef BOOST_APPLICATION_HPP
-#define BOOST_APPLICATION_HPP
+#define BOOST_LIB_DIAGNOSTIC
 
-/// \file boost/application.hpp
-/// \brief Includes all the headers of the Boost.Application library.
+#include <iostream>
+#include <boost/application/application.hpp>
+#include <boost/program_options.hpp>
+#include <boost/application/setup/os.hpp>
 
-// config
-#include <boost/config.hpp>
-#include <boost/application/config.hpp>
-// application
-#include <boost/application/version.hpp>
-#include <boost/application/context.hpp>
-#include <boost/application/launch.hpp>
-#include <boost/application/auto_handler.hpp>
-// #include <boost/application/auto_app.hpp>
-// application/aspects
-#include <boost/application/aspects/args.hpp>
-#include <boost/application/aspects/limit_single_instance.hpp>
-#include <boost/application/aspects/wait_for_termination_request.hpp>
-#include <boost/application/aspects/path.hpp>
-#include <boost/application/aspects/termination_handler.hpp>
-#include <boost/application/aspects/process_id.hpp>
-
-#ifdef BOOST_HAS_PRAGMA_ONCE
-# pragma once
+#if OS == WIN32 || OS == WIN64
+#include <tchar.h>
+#include <boost/application/setup/setup.hpp>
 #endif
 
-#endif // BOOST_APPLICATION_HPP
+namespace po = boost::program_options;
+
+/*!
+ * \brief This class was for creating, installing and uninstalling service
+ */
+class service
+{
+public:
+	/*!
+	 * Creates a service application
+	 *
+	 * \param context The service application context
+	 */
+	service(boost::application::context& context)
+		: context_(context)
+	{
+	}
+
+	/*!
+	 * Main service function
+	 * Overriding when include
+	 */
+	void work();
+
+	/*!
+	 * Install the service
+	 */
+	void install(std::string name, std::string mode)
+	{
+#if OS == LINUX
+		if (mode == "auto")
+		{
+			int resid;
+			const char* path_str = path.c_str();
+			std::string command("sudo cp ");
+			command.append(path_str);
+			command.append(" /etc/init.d/");
+			command.append(name.c_str());
+			resid = std::system(command.c_str()); // copy bin file /etc/init.d
+			if (resid != 0)
+			{
+				std::cout << " [error] " << resid << std::endl;
+			}
+			command = "update-rc.d ";
+			command.append(name.c_str());
+			command.append(" defaults");
+			resid = std::system(command.c_str()); // update-rc.d <NAME> defaults
+			if (resid == 0) // command returned successfully
+			{
+				std::cout << "Daemon successfully installed" << std::endl;
+			}
+			else // command reteurned some error
+			{
+				std::cout << " [error] " << resid << std::endl;
+			}
+		}
+#elif OS == WIN32 || OS == WIN64
+		std::string path_str = path.string();
+		std::wstring wide_name = std::wstring(name.begin(), name.end());
+		std::wstring wide_path = std::wstring(path_str.begin(), path_str.end());
+		const wchar_t* svcname = wide_name.c_str();
+		const wchar_t* svcpath = wide_path.c_str();
+		
+		install_windows_service(svcname, mode, svcpath);
+#endif // OS == LINUX ? OS == WIN32 || OS == WIN64
+	}
+
+	/*!
+	 * Uninstall the service
+	 */
+	void uninstall(std::string name)
+	{
+#if OS == LINUX
+		int resid;
+		std::string command("sudo rm -f /etc/init.d/");
+		command.append(name.c_str());
+		resid = std::system(command.c_str()); // remove /etc/init.d/<NAME>
+		if (resid == 0) // command returned successfully
+		{
+			std::cout << "Daemon successfully deleted" << std::endl;
+		}
+		else // command returned some error
+		{
+			std::cout << " [error] " << resid << std::endl;
+		}
+#elif OS == WIN32 || OS == WIN64
+		std::wstring wide_name = std::wstring(name.begin(), name.end());
+		const wchar_t* svcname = wide_name.c_str();
+		uninstall_windows_service(svcname);
+#endif // OS == LINUX ? OS == WIN32 || OS == WIN64
+	}
+
+	/*!
+	 * Calling methods from command-line arguments
+	 */
+	bool setup()
+	{
+		po::options_description desc("Allowed options");
+		desc.add_options()
+			("help,h", "display this help message")
+			("install,i", "install service")
+			("uninstall,u", "uninstall service")
+			("name,n", po::value<std::string>()->default_value("my_service"),
+			 "name of the service")
+			("mode,m", po::value<std::string>()->default_value("manual"),
+			 "service mode [auto, manual*]")
+			;
+
+		po::variables_map vm;
+		po::store(po::parse_command_line(args->argc(), args->argv(), desc), vm);
+		po::notify(vm);
+
+		std::string name = vm["name"].as<std::string>(); // -n, --name
+		std::string mode = vm["mode"].as<std::string>(); // -m, --mode
+
+		if (vm.count("help")) // -h, --help
+		{
+			std::cout << desc << std::endl;
+			return 1;
+		}
+
+		if (vm.count("install")) // -i, --install
+		{
+			install(name, mode);
+			return 1;
+		}
+
+		if (vm.count("uninstall")) // -u, --uninstall
+		{
+			uninstall(name);
+			return 1;
+		}
+		return 0;
+	}
+
+	/*!
+	 * Start method
+	 */
+	int operator()()
+	{
+		args = context_.find<boost::application::args>(); // command-line args
+		path = boost::filesystem::system_complete(args->argv()[0]); // exe path
+
+		if (setup()) // called install or uninstall
+		{
+			return 1;
+		}
+
+		// Launch new background thread and call service::work method
+		boost::thread thread(&service::work, this);
+		context_.find<boost::application
+			::wait_for_termination_request>()->wait();
+
+		return 0;
+	}
+
+	/*!
+	 * On service stop [Linux/Windows]
+	 */
+	bool stop()
+	{
+		return true;
+	}
+
+	/*!
+	 * On service pause [Windows]
+	 */
+	bool pause()
+	{
+		return true;
+	}
+
+	/*!
+	 * On service resume [Windows]
+	 */
+	bool resume()
+	{
+		return true;
+	}
+
+private:
+	boost::application::context& context_;
+	std::shared_ptr<boost::application::args> args;
+	boost::filesystem::path path;
+};
+
+/*!
+ * \brief Application class for creating service apps
+ */
+class application
+{
+public:
+	/*!
+	 * Creates an application
+	 */
+	application()
+	{
+	}
+
+	/*!
+	 * Create service
+	 */
+#if OS == WIN32 || OS == WIN64
+	int start(int argc, _TCHAR* argv[])
+#elif OS == LINUX
+	int start(int argc, char* argv[])
+#endif // OS == WIN32 || OS == WIN64 ? OS == LINUX
+	{
+		boost::application::context app_context;
+		boost::application::auto_handler<service> app(app_context);
+		app_context.insert<boost::application::args>(
+			std::make_shared<boost::application::args>(argc, argv));
+		boost::system::error_code ec;
+		int res;
+
+		if (argc == 1) // runned without arguments
+		{
+			res = boost::application::launch<
+#if OS == LINUX
+				boost::application::server // launch app in background
+#elif OS == WIN32 || OS == WIN64
+				boost::application::common // launch app in foreground
+#endif // OS == LINUX ? OS == WIN32 || OS == WIN64
+				>(app, app_context, ec);
+		}
+		else
+		{
+#if OS == LINUX
+			if (getuid()) // runned as sudo
+			{
+				std::cout << "Please run as root" << std::endl;
+				return 1;
+			}
+#endif // OS == LINUX
+			res = boost::application::launch<
+				boost::application::common>(app, app_context, ec);
+		}
+
+		return res;
+	}
+};
+
+#endif // APPLICATION_HPP
