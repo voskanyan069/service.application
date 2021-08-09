@@ -8,37 +8,41 @@
 #include <boost/program_options.hpp>
 #include <boost/application/setup/os.hpp>
 
-#if OS == WIN32 || OS == WIN64
+#if defined(BOOST_APPLICATION_TCHAR)
 #include <tchar.h>
+#endif // BOOST_APPLICATION_TCHAR
+
+#if OS == WIN32 || OS == WIN64
 #include <boost/application/setup/setup.hpp>
-#endif
+#endif // OS == WIN32 || OS == WIN64
 
 namespace po = boost::program_options;
 
-/*!
- * \brief This class was for creating, installing and uninstalling service
+/*
+ * brief This class was for creating, installing and uninstalling service
  */
 class service
 {
 public:
-	/*!
-	 * Creates a service application
-	 *
-	 * \param context The service application context
+	/*
+	 * brief Creates a service application
+	 * param context The service application context
 	 */
 	service(boost::application::context& context)
 		: context_(context)
 	{
 	}
 
-	/*!
-	 * Main service function
-	 * Overriding when include
+	/*
+	 * brief Main service function
+	 * note Overriding when include
 	 */
 	void work();
 
-	/*!
-	 * Install the service
+	/*
+	 * brief Install the service
+	 * param name Service name to isntall
+	 * param mode Service install mode [auto/manual]
 	 */
 	void install(std::string name, std::string mode)
 	{
@@ -80,8 +84,9 @@ public:
 #endif // OS == LINUX ? OS == WIN32 || OS == WIN64
 	}
 
-	/*!
-	 * Uninstall the service
+	/*
+	 * brief Uninstall the service
+	 * param name Service name
 	 */
 	void uninstall(std::string name)
 	{
@@ -105,8 +110,13 @@ public:
 #endif // OS == LINUX ? OS == WIN32 || OS == WIN64
 	}
 
-	/*!
-	 * Calling methods from command-line arguments
+	/*
+	 * brief Calling methods from command-line arguments
+	 * return Returning code of executated \
+	 * 	[ \
+	 * 	 1 - called any command-line arg, \
+	 * 	 0 - non arguments called, service runned \
+	 *  ]
 	 */
 	bool setup()
 	{
@@ -148,8 +158,9 @@ public:
 		return 0;
 	}
 
-	/*!
-	 * Start method
+	/*
+	 * brief Start method
+	 * return Code of runned with command-line arguments or not
 	 */
 	int operator()()
 	{
@@ -169,24 +180,27 @@ public:
 		return 0;
 	}
 
-	/*!
-	 * On service stop [Linux/Windows]
+	/*
+	 * brief On service stop [Linux/Windows]
+	 * return Return true to stop
 	 */
 	bool stop()
 	{
 		return true;
 	}
 
-	/*!
-	 * On service pause [Windows]
+	/*
+	 * brief On service pause [Windows]
+	 * return Return true to pause
 	 */
 	bool pause()
 	{
 		return true;
 	}
 
-	/*!
-	 * On service resume [Windows]
+	/*
+	 * brief On service resume [Windows]
+	 * return Return true to resume
 	 */
 	bool resume()
 	{
@@ -199,27 +213,28 @@ private:
 	boost::filesystem::path path;
 };
 
-/*!
- * \brief Application class for creating service apps
+/*
+ * brief Application class for creating service apps
  */
 class application
 {
 public:
-	/*!
-	 * Creates an application
+	/*
+	 * brief Creates an application
 	 */
 	application()
 	{
 	}
 
-	/*!
-	 * Create service
+	/*
+	 * brief Create service
+	 * return Error code
 	 */
-#if OS == WIN32 || OS == WIN64
+#if defined(BOOST_APPLICATION_TCHAR) || OS == WIN32 || OS == WIN64
 	int start(int argc, _TCHAR* argv[])
 #elif OS == LINUX
 	int start(int argc, char* argv[])
-#endif // OS == WIN32 || OS == WIN64 ? OS == LINUX
+#endif // BOOST_APPLICATION_TCHAR || OS == WIN32 || OS == WIN64 ? OS == LINUX
 	{
 		boost::application::context app_context;
 		boost::application::auto_handler<service> app(app_context);

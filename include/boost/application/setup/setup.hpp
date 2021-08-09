@@ -3,6 +3,12 @@
 
 #include <string>
 
+/*
+ * brief Install service for windows os
+ * param SVCNAME Service name to install
+ * param mode Service mode [auto/manual]
+ * param SVCPATH Path to executable of service
+ */
 void install_windows_service(const wchar_t* SVCNAME,
 		std::string mode, const wchar_t* SVCPATH)
 {
@@ -62,6 +68,10 @@ void install_windows_service(const wchar_t* SVCNAME,
 	CloseServiceHandle(schSCManager);
 }
 
+/*
+ * brief Service uninstalling for windows os
+ * param szSvcName Service name to uninstall
+ */
 void uninstall_windows_service(const wchar_t* szSvcName)
 {
 	SC_HANDLE schSCManager;
