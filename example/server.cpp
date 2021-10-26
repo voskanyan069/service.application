@@ -1,4 +1,7 @@
-#include <application.hpp>
+#include <tchar.h>
+#define BOOST_APPLICATION_TCHAR
+
+#include <boost/application.hpp>
 #include <boost/asio.hpp>
 
 /*
@@ -38,7 +41,7 @@ void service::work()
 	}
 }
 
-int main(int argc, char* argv[])
+int _tmain(int argc, _TCHAR* argv[])
 {
 	application app;		// create object of application
 	app.start(argc, argv);	// call start functaion from application.h

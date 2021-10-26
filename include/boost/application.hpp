@@ -4,52 +4,62 @@
 #define BOOST_LIB_DIAGNOSTIC
 
 #include <iostream>
-#include <boost/application.hpp>
+#include <boost/application/application.hpp>
 #include <boost/program_options.hpp>
-#include "os.h"
+#include <boost/application/setup/os.hpp>
+
+#if defined(BOOST_APPLICATION_TCHAR)
+#include <tchar.h>
+#endif // BOOST_APPLICATION_TCHAR
 
 #if OS == WIN32 || OS == WIN64
-#include <tchar.h>
-#include "setup.h"
-#endif
+#include <boost/application/setup/setup.hpp>
+#endif // OS == WIN32 || OS == WIN64
 
 namespace po = boost::program_options;
 
 /*
- * This class was for creating, installing and uninstalling service
+ * brief This class was for creating, installing and uninstalling service
  */
 class service
 {
 public:
+	/*
+	 * brief Creates a service application
+	 * param context The service application context
+	 */
 	service(boost::application::context& context)
 		: context_(context)
 	{
 	}
 
 	/*
-	 * Overriding when include
+	 * brief Main service function
+	 * note Overriding when include
 	 */
 	void work();
 
 	/*
-	 * Install the service
+	 * brief Install the service
+	 * param name Service name to isntall
+	 * param mode Service install mode [auto/manual]
 	 */
 	void install(std::string name, std::string mode)
 	{
 #if OS == LINUX
-		int resid;
-		const char* path_str = path.c_str();
-		std::string command("sudo cp ");
-		command.append(path_str);
-		command.append(" /etc/init.d/");
-		command.append(name.c_str());
-		resid = std::system(command.c_str()); // copy bin file to /etc/init.d/
-		if (resid != 0)
-		{
-			std::cout << " [error] " << resid << std::endl;
-		}
 		if (mode == "auto")
 		{
+			int resid;
+			const char* path_str = path.c_str();
+			std::string command("sudo cp ");
+			command.append(path_str);
+			command.append(" /etc/init.d/");
+			command.append(name.c_str());
+			resid = std::system(command.c_str()); // copy bin file /etc/init.d
+			if (resid != 0)
+			{
+				std::cout << " [error] " << resid << std::endl;
+			}
 			command = "update-rc.d ";
 			command.append(name.c_str());
 			command.append(" defaults");
@@ -71,11 +81,12 @@ public:
 		const wchar_t* svcpath = wide_path.c_str();
 		
 		install_windows_service(svcname, mode, svcpath);
-#endif
+#endif // OS == LINUX ? OS == WIN32 || OS == WIN64
 	}
 
 	/*
-	 * Uninstall the service
+	 * brief Uninstall the service
+	 * param name Service name
 	 */
 	void uninstall(std::string name)
 	{
@@ -96,11 +107,16 @@ public:
 		std::wstring wide_name = std::wstring(name.begin(), name.end());
 		const wchar_t* svcname = wide_name.c_str();
 		uninstall_windows_service(svcname);
-#endif
+#endif // OS == LINUX ? OS == WIN32 || OS == WIN64
 	}
 
 	/*
-	 * Calling other methods from command-line arguments
+	 * brief Calling methods from command-line arguments
+	 * return Returning code of executated \
+	 * 	[ \
+	 * 	 1 - called any command-line arg, \
+	 * 	 0 - non arguments called, service runned \
+	 *  ]
 	 */
 	bool setup()
 	{
@@ -142,6 +158,10 @@ public:
 		return 0;
 	}
 
+	/*
+	 * brief Start method
+	 * return Code of runned with command-line arguments or not
+	 */
 	int operator()()
 	{
 		args = context_.find<boost::application::args>(); // command-line args
@@ -161,7 +181,8 @@ public:
 	}
 
 	/*
-	 * On service stop [Linux/Windows]
+	 * brief On service stop [Linux/Windows]
+	 * return Return true to stop
 	 */
 	bool stop()
 	{
@@ -169,7 +190,8 @@ public:
 	}
 
 	/*
-	 * On service pause [Windows]
+	 * brief On service pause [Windows]
+	 * return Return true to pause
 	 */
 	bool pause()
 	{
@@ -177,7 +199,8 @@ public:
 	}
 
 	/*
-	 * On service resume [Windows]
+	 * brief On service resume [Windows]
+	 * return Return true to resume
 	 */
 	bool resume()
 	{
@@ -191,23 +214,27 @@ private:
 };
 
 /*
- * Application class for creating service apps
+ * brief Application class for creating service apps
  */
 class application
 {
 public:
+	/*
+	 * brief Creates an application
+	 */
 	application()
 	{
 	}
 
 	/*
-	 * Create service
+	 * brief Create service
+	 * return Error code
 	 */
-#if OS == WIN32 || OS == WIN64
+#if defined(BOOST_APPLICATION_TCHAR) || OS == WIN32 || OS == WIN64
 	int start(int argc, _TCHAR* argv[])
 #elif OS == LINUX
 	int start(int argc, char* argv[])
-#endif
+#endif // BOOST_APPLICATION_TCHAR || OS == WIN32 || OS == WIN64 ? OS == LINUX
 	{
 		boost::application::context app_context;
 		boost::application::auto_handler<service> app(app_context);
@@ -223,7 +250,7 @@ public:
 				boost::application::server // launch app in background
 #elif OS == WIN32 || OS == WIN64
 				boost::application::common // launch app in foreground
-#endif
+#endif // OS == LINUX ? OS == WIN32 || OS == WIN64
 				>(app, app_context, ec);
 		}
 		else
@@ -234,7 +261,7 @@ public:
 				std::cout << "Please run as root" << std::endl;
 				return 1;
 			}
-#endif
+#endif // OS == LINUX
 			res = boost::application::launch<
 				boost::application::common>(app, app_context, ec);
 		}
